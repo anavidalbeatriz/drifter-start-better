@@ -200,6 +200,14 @@ class Game {
         // Update player with input and boundaries
         this.player.update(deltaTime, this.inputHandler, this.width, this.height);
         
+        // Check for player boundary collision and create effect
+        if (this.player.lastBoundaryHit) {
+            const hit = this.player.lastBoundaryHit;
+            // Create boundary collision particle effect
+            this.particles.createConsumption(hit.x, hit.y, '#00ffff', 8);
+            this.player.lastBoundaryHit = null; // Clear after processing
+        }
+        
         // Update bodies
         this.bodies.forEach(body => {
             body.update(deltaTime, this.width, this.height);
@@ -208,11 +216,64 @@ class Game {
         // Update particles
         this.particles.update(deltaTime);
 
+        // Check collisions between celestial bodies
+        this.checkBodyCollisions();
+
         // Check collisions between player and bodies
         this.checkCollisions();
 
         // Update UI
         this.updateUI();
+    }
+
+    /**
+     * Check and handle collisions between celestial bodies
+     */
+    checkBodyCollisions() {
+        // Check each body against all other bodies
+        for (let i = this.bodies.length - 1; i >= 0; i--) {
+            const body1 = this.bodies[i];
+            
+            // Skip if body was already removed
+            if (!this.bodies[i]) continue;
+            
+            for (let j = i - 1; j >= 0; j--) {
+                const body2 = this.bodies[j];
+                
+                // Skip if body was already removed
+                if (!this.bodies[j]) continue;
+                
+                if (Physics.checkCollision(body1, body2)) {
+                    // Determine which body is larger
+                    if (body1.mass > body2.mass) {
+                        // Body1 consumes body2
+                        body1.mass += body2.mass;
+                        body1.radius = body1.calculateRadius();
+                        body1.color = body1.getColorByMass(); // Update color if mass category changed
+                        
+                        // Create particle effect
+                        this.particles.createConsumption(body2.x, body2.y, body2.color, 10);
+                        
+                        // Remove body2
+                        this.bodies.splice(j, 1);
+                        break; // Body1 can only consume one body per frame
+                    } else if (body2.mass > body1.mass) {
+                        // Body2 consumes body1
+                        body2.mass += body1.mass;
+                        body2.radius = body2.calculateRadius();
+                        body2.color = body2.getColorByMass(); // Update color if mass category changed
+                        
+                        // Create particle effect
+                        this.particles.createConsumption(body1.x, body1.y, body1.color, 10);
+                        
+                        // Remove body1
+                        this.bodies.splice(i, 1);
+                        break; // Exit inner loop since body1 is removed
+                    }
+                    // If equal mass, nothing happens (they just bounce/overlap)
+                }
+            }
+        }
     }
 
     /**

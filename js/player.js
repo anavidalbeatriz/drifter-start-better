@@ -56,8 +56,8 @@ class Player {
         this.x += this.vx * deltaTime;
         this.y += this.vy * deltaTime;
         
-        // Wrap around boundaries
-        this.wrapBoundaries(canvasWidth, canvasHeight);
+        // Check and handle boundary collisions (bounce instead of wrap)
+        this.handleBoundaryCollisions(canvasWidth, canvasHeight);
         
         // Update trail for visual feedback (reuse speed variable)
         if (speed > 10) { // Only show trail when moving
@@ -83,21 +83,51 @@ class Player {
     }
 
     /**
-     * Wrap player position around canvas boundaries
+     * Handle boundary collisions with bounce effect
      */
-    wrapBoundaries(canvasWidth, canvasHeight) {
-        // Wrap horizontally
-        if (this.x < -this.radius) {
-            this.x = canvasWidth + this.radius;
-        } else if (this.x > canvasWidth + this.radius) {
-            this.x = -this.radius;
+    handleBoundaryCollisions(canvasWidth, canvasHeight) {
+        let hitBoundary = false;
+        let hitX = false;
+        let hitY = false;
+        
+        // Check left boundary
+        if (this.x - this.radius < 0) {
+            this.x = this.radius;
+            this.vx = -this.vx * 0.7; // Bounce with some energy loss
+            hitBoundary = true;
+            hitX = true;
+        }
+        // Check right boundary
+        else if (this.x + this.radius > canvasWidth) {
+            this.x = canvasWidth - this.radius;
+            this.vx = -this.vx * 0.7; // Bounce with some energy loss
+            hitBoundary = true;
+            hitX = true;
         }
         
-        // Wrap vertically
-        if (this.y < -this.radius) {
-            this.y = canvasHeight + this.radius;
-        } else if (this.y > canvasHeight + this.radius) {
-            this.y = -this.radius;
+        // Check top boundary
+        if (this.y - this.radius < 0) {
+            this.y = this.radius;
+            this.vy = -this.vy * 0.7; // Bounce with some energy loss
+            hitBoundary = true;
+            hitY = true;
+        }
+        // Check bottom boundary
+        else if (this.y + this.radius > canvasHeight) {
+            this.y = canvasHeight - this.radius;
+            this.vy = -this.vy * 0.7; // Bounce with some energy loss
+            hitBoundary = true;
+            hitY = true;
+        }
+        
+        // Store collision info for particle effects
+        if (hitBoundary) {
+            this.lastBoundaryHit = {
+                x: this.x,
+                y: this.y,
+                hitX: hitX,
+                hitY: hitY
+            };
         }
     }
 
