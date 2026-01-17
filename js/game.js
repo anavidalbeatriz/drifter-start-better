@@ -35,6 +35,12 @@ class Game {
         // UI elements
         this.massDisplay = document.getElementById('mass-display');
         
+        // Initialize background music
+        this.backgroundMusic = document.getElementById('background-music');
+        if (this.backgroundMusic) {
+            this.backgroundMusic.volume = 0.5; // Set volume (0.0 to 1.0)
+        }
+        
         // Setup input handlers
         this.setupInputHandlers();
     }
@@ -79,6 +85,14 @@ class Game {
      */
     startGame() {
         this.state = 'playing';
+        
+        // Start background music
+        if (this.backgroundMusic) {
+            this.backgroundMusic.play().catch(error => {
+                console.log('Could not play background music:', error);
+                // Some browsers require user interaction before playing audio
+            });
+        }
     }
 
     /**
@@ -388,6 +402,12 @@ class Game {
                     // Check win condition
                     if (this.player.mass >= 100) {
                         this.state = 'win';
+                        
+                        // Stop background music
+                        if (this.backgroundMusic) {
+                            this.backgroundMusic.pause();
+                        }
+                        
                         return;
                     }
                     
@@ -399,6 +419,12 @@ class Game {
                     // Use body's color for the explosion particles
                     this.particles.createConsumption(this.player.x, this.player.y, body.color, 15);
                     this.state = 'gameOver';
+                    
+                    // Stop background music
+                    if (this.backgroundMusic) {
+                        this.backgroundMusic.pause();
+                    }
+                    
                     return;
                 } else {
                     // Equal mass - bounce/repel effect
@@ -657,5 +683,12 @@ class Game {
         this.player = new Player(this.width / 2, this.height / 2);
         this.bodies = [];
         this.generateBodies();
+        
+        // Restart music if it's not playing
+        if (this.backgroundMusic && this.backgroundMusic.paused) {
+            this.backgroundMusic.play().catch(error => {
+                console.log('Could not play background music:', error);
+            });
+        }
     }
 }
