@@ -247,33 +247,126 @@ class Game {
                     // Determine which body is larger
                     if (body1.mass > body2.mass) {
                         // Body1 consumes body2
-                        body1.mass += body2.mass;
+                        const consumedMass = body2.mass;
+                        const consumedX = body2.x;
+                        const consumedY = body2.y;
+                        const consumedColor = body2.color;
+                        
+                        body1.mass += consumedMass;
                         body1.radius = body1.calculateRadius();
                         body1.color = body1.getColorByMass(); // Update color if mass category changed
                         
                         // Create particle effect
-                        this.particles.createConsumption(body2.x, body2.y, body2.color, 10);
+                        this.particles.createConsumption(consumedX, consumedY, consumedColor, 10);
                         
                         // Remove body2
                         this.bodies.splice(j, 1);
+                        
+                        // Create new body C with same mass as consumed body B
+                        this.respawnBodyAtLocation(consumedMass, consumedX, consumedY);
+                        
                         break; // Body1 can only consume one body per frame
                     } else if (body2.mass > body1.mass) {
                         // Body2 consumes body1
-                        body2.mass += body1.mass;
+                        const consumedMass = body1.mass;
+                        const consumedX = body1.x;
+                        const consumedY = body1.y;
+                        const consumedColor = body1.color;
+                        
+                        body2.mass += consumedMass;
                         body2.radius = body2.calculateRadius();
                         body2.color = body2.getColorByMass(); // Update color if mass category changed
                         
                         // Create particle effect
-                        this.particles.createConsumption(body1.x, body1.y, body1.color, 10);
+                        this.particles.createConsumption(consumedX, consumedY, consumedColor, 10);
                         
                         // Remove body1
                         this.bodies.splice(i, 1);
+                        
+                        // Create new body C with same mass as consumed body A
+                        this.respawnBodyAtLocation(consumedMass, consumedX, consumedY);
+                        
                         break; // Exit inner loop since body1 is removed
                     }
                     // If equal mass, nothing happens (they just bounce/overlap)
                 }
             }
         }
+    }
+
+    /**
+     * Respawn a body at a specific location with given mass
+     * Used when bodies are consumed by other bodies
+     */
+    respawnBodyAtLocation(mass, x, y) {
+        // Find a position away from the respawn location to avoid immediate re-collision
+        let newX, newY;
+        let attempts = 0;
+        let validPosition = false;
+        
+        while (!validPosition && attempts < 30) {
+            // Spawn in a random location, but try to be away from the consumption point
+            newX = random(0, this.width);
+            newY = random(0, this.height);
+            
+            // Check distance from consumption point (avoid immediate re-collision)
+            const distFromConsumption = distance(newX, newY, x, y);
+            const minDist = 50; // Minimum distance from consumption point
+            
+            if (distFromConsumption >= minDist) {
+                // Check distance from player
+                const distToPlayer = distance(newX, newY, this.player.x, this.player.y);
+                const bodyBaseRadius = 8;
+                const bodyRadius = bodyBaseRadius * Math.sqrt(mass);
+                
+                let minDistFromPlayer;
+                if (mass > this.player.mass) {
+                    minDistFromPlayer = this.player.radius + bodyRadius + 100;
+                } else if (mass === this.player.mass) {
+                    minDistFromPlayer = this.player.radius + bodyRadius + 40;
+                } else {
+                    minDistFromPlayer = this.player.radius + bodyRadius + 30;
+                }
+                
+                if (distToPlayer >= minDistFromPlayer) {
+                    // Check distance from other bodies
+                    let tooClose = false;
+                    for (const body of this.bodies) {
+                        const dist = distance(newX, newY, body.x, body.y);
+                        const minDist = bodyRadius + body.radius + 20;
+                        if (dist < minDist) {
+                            tooClose = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!tooClose) {
+                        validPosition = true;
+                    }
+                }
+            }
+            
+            attempts++;
+        }
+        
+        // If we couldn't find a perfect position, use a position away from consumption point
+        if (!validPosition) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 60 + Math.random() * 40; // 60-100 pixels away
+            newX = x + Math.cos(angle) * distance;
+            newY = y + Math.sin(angle) * distance;
+            
+            // Clamp to canvas bounds
+            newX = Math.max(0, Math.min(this.width, newX));
+            newY = Math.max(0, Math.min(this.height, newY));
+        }
+        
+        // Create new body with same mass as consumed body
+        const newBody = new CelestialBody(newX, newY, mass);
+        newBody.vx = random(-30, 30);
+        newBody.vy = random(-30, 30);
+        
+        this.bodies.push(newBody);
     }
 
     /**
