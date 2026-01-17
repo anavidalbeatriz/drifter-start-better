@@ -14,13 +14,16 @@ class Game {
         this.height = canvas.height;
         
         // Game state
-        this.state = 'menu'; // menu, playing, gameOver, win
+        this.state = 'menu'; // menu, playing, paused, gameOver, win
         
         // Initialize input handler
         this.inputHandler = new InputHandler();
         
         // Initialize renderer
         this.renderer = new Renderer(canvas);
+        
+        // Initialize particle system
+        this.particles = new ParticleSystem();
         
         // Initialize player (center of canvas)
         this.player = new Player(this.width / 2, this.height / 2);
@@ -43,6 +46,17 @@ class Game {
         const game = this;
         window.addEventListener('keydown', function(e) {
             const key = e.key.toLowerCase();
+            
+            // Pause/unpause game
+            if (key === 'escape' || key === 'esc') {
+                if (game.state === 'playing') {
+                    game.state = 'paused';
+                    e.preventDefault();
+                } else if (game.state === 'paused') {
+                    game.state = 'playing';
+                    e.preventDefault();
+                }
+            }
             
             // Start game from menu
             if (key === ' ' || key === 'enter') {
@@ -174,8 +188,12 @@ class Game {
      * Update game state
      */
     update(deltaTime) {
-        if (this.state === 'menu' || this.state === 'gameOver' || this.state === 'win') {
-            // Don't update game logic when in menu or end screens
+        if (this.state === 'menu' || this.state === 'paused' || this.state === 'gameOver' || this.state === 'win') {
+            // Don't update game logic when in menu, paused, or end screens
+            // But still update particles for visual continuity
+            if (this.state === 'paused') {
+                this.particles.update(deltaTime);
+            }
             return;
         }
 
@@ -186,6 +204,9 @@ class Game {
         this.bodies.forEach(body => {
             body.update(deltaTime, this.width, this.height);
         });
+
+        // Update particles
+        this.particles.update(deltaTime);
 
         // Check collisions between player and bodies
         this.checkCollisions();
@@ -205,6 +226,9 @@ class Game {
             if (Physics.checkCollision(this.player, body)) {
                 if (this.player.mass > body.mass) {
                     // Player consumes smaller body
+                    // Create particle effect
+                    this.particles.createConsumption(body.x, body.y, body.color, 12);
+                    
                     this.player.mass += body.mass;
                     
                     // Check win condition
@@ -217,6 +241,9 @@ class Game {
                     this.respawnBody(i);
                 } else if (this.player.mass < body.mass) {
                     // Player destroyed by larger body
+                    // Create consumption effect (same as when player consumes bodies)
+                    // Use body's color for the explosion particles
+                    this.particles.createConsumption(this.player.x, this.player.y, body.color, 15);
                     this.state = 'gameOver';
                     return;
                 } else {
@@ -341,14 +368,43 @@ class Game {
             this.player.render(this.ctx);
         }
         
+        // Render particles (on top of everything for visibility)
+        this.particles.render(this.ctx);
+        
         // Render menu/end screens
         if (this.state === 'menu') {
             this.renderMenu();
+        } else if (this.state === 'paused') {
+            this.renderPaused();
         } else if (this.state === 'gameOver') {
             this.renderGameOver();
         } else if (this.state === 'win') {
             this.renderWin();
         }
+    }
+
+    /**
+     * Render pause screen
+     */
+    renderPaused() {
+        // Draw semi-transparent overlay
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Pause text
+        this.ctx.fillStyle = '#ffff00';
+        this.ctx.font = 'bold 48px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('PAUSED', this.width / 2, this.height / 2 - 20);
+        
+        // Resume instruction
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '20px Arial';
+        this.ctx.fillText('Press ESC to resume', this.width / 2, this.height / 2 + 30);
+        
+        // Show current mass
+        this.ctx.font = '18px Arial';
+        this.ctx.fillText(`Current Mass: ${this.player.mass}/100`, this.width / 2, this.height / 2 + 60);
     }
 
     /**
@@ -422,8 +478,20 @@ class Game {
      * Update UI elements
      */
     updateUI() {
+        const instructions = document.getElementById('instructions');
+        
+        // Update mass display
         if (this.massDisplay) {
             this.massDisplay.textContent = `Mass: ${this.player.mass}/100`;
+        }
+        
+        // Show/hide instructions based on game state
+        if (instructions) {
+            if (this.state === 'menu' || this.state === 'paused' || this.state === 'gameOver' || this.state === 'win') {
+                instructions.style.display = 'none';
+            } else {
+                instructions.style.display = 'block';
+            }
         }
     }
 
