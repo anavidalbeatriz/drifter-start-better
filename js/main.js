@@ -14,11 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         canvas.width = 640;
         canvas.height = 480;
         
-        console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
-        
         // Create game instance
         const game = new Game(canvas);
-        console.log('Game created successfully');
         
         // Game loop variables
         let lastTime = 0;
@@ -54,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Start game loop
         requestAnimationFrame(gameLoop);
-        console.log('Game loop started');
         
         // Handle window resize (optional, for responsive design)
         window.addEventListener('resize', () => {

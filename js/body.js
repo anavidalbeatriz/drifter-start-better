@@ -33,11 +33,37 @@ class CelestialBody {
     }
 
     /**
-     * Update body (will be used in Phase 3 for movement)
+     * Update body movement
      */
     update(deltaTime, canvasWidth, canvasHeight) {
-        // Phase 1: Bodies are static, no movement yet
+        // Update position based on velocity
+        this.x += this.vx * deltaTime;
+        this.y += this.vy * deltaTime;
+        
+        // Wrap around boundaries
+        this.wrapBoundaries(canvasWidth, canvasHeight);
+        
+        // Update radius (in case mass changed)
         this.radius = this.calculateRadius();
+    }
+
+    /**
+     * Wrap body position around canvas boundaries
+     */
+    wrapBoundaries(canvasWidth, canvasHeight) {
+        // Wrap horizontally
+        if (this.x < -this.radius) {
+            this.x = canvasWidth + this.radius;
+        } else if (this.x > canvasWidth + this.radius) {
+            this.x = -this.radius;
+        }
+        
+        // Wrap vertically
+        if (this.y < -this.radius) {
+            this.y = canvasHeight + this.radius;
+        } else if (this.y > canvasHeight + this.radius) {
+            this.y = -this.radius;
+        }
     }
 
     /**
