@@ -82,12 +82,5 @@ class CelestialBody {
         ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1.0;
-        
-        // Display mass number inside body (for testing)
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold ' + Math.max(10, Math.min(this.radius * 0.8, 16)) + 'px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.mass.toString(), this.x, this.y);
     }
 }

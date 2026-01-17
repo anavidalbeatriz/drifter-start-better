@@ -14,7 +14,7 @@ class Game {
         this.height = canvas.height;
         
         // Game state
-        this.state = 'playing'; // playing, gameOver, win
+        this.state = 'menu'; // menu, playing, gameOver, win
         
         // Initialize input handler
         this.inputHandler = new InputHandler();
@@ -32,21 +32,39 @@ class Game {
         // UI elements
         this.massDisplay = document.getElementById('mass-display');
         
-        // Setup restart key handler
-        this.setupRestartHandler();
+        // Setup input handlers
+        this.setupInputHandlers();
     }
 
     /**
-     * Setup restart key handler (R key)
+     * Setup input handlers for menu and restart
      */
-    setupRestartHandler() {
-        // Use arrow function to preserve 'this' context
+    setupInputHandlers() {
         const game = this;
         window.addEventListener('keydown', function(e) {
-            if (e.key.toLowerCase() === 'r' && (game.state === 'gameOver' || game.state === 'win')) {
+            const key = e.key.toLowerCase();
+            
+            // Start game from menu
+            if (key === ' ' || key === 'enter') {
+                if (game.state === 'menu') {
+                    game.startGame();
+                    e.preventDefault();
+                }
+            }
+            
+            // Restart from game over/win
+            if (key === 'r' && (game.state === 'gameOver' || game.state === 'win')) {
                 game.reset();
+                e.preventDefault();
             }
         });
+    }
+
+    /**
+     * Start the game from menu
+     */
+    startGame() {
+        this.state = 'playing';
     }
 
     /**
@@ -61,21 +79,49 @@ class Game {
             let attempts = 0;
             let validPosition = false;
             
+            // Generate mass first (needed to calculate safe distance)
+            // 45% small (1-3), 25% medium (4-10), 30% large (11-50)
+            const rand = Math.random();
+            if (rand < 0.45) {
+                mass = randomInt(1, 3); // Small
+            } else if (rand < 0.70) {
+                mass = randomInt(4, 10); // Medium
+            } else {
+                mass = randomInt(11, 50); // Large
+            }
+            
+            // Calculate body radius to determine safe distance
+            const bodyBaseRadius = 8; // Same as player
+            const bodyRadius = bodyBaseRadius * Math.sqrt(mass);
+            
             // Try to find a valid position (not overlapping with player or other bodies)
             while (!validPosition && attempts < 50) {
                 x = random(0, this.width);
                 y = random(0, this.height);
                 
-                // Check distance from player (should be at least player radius + some space)
+                // Check distance from player
                 const distToPlayer = distance(x, y, this.player.x, this.player.y);
-                const minDistFromPlayer = this.player.radius + 30;
+                
+                // Larger bodies need more distance from player
+                // Bodies larger than player need significantly more space
+                let minDistFromPlayer;
+                if (mass > this.player.mass) {
+                    // Large bodies: much more distance (at least 100 pixels + their radius)
+                    minDistFromPlayer = this.player.radius + bodyRadius + 100;
+                } else if (mass === this.player.mass) {
+                    // Equal mass: moderate distance
+                    minDistFromPlayer = this.player.radius + bodyRadius + 40;
+                } else {
+                    // Smaller bodies: standard distance
+                    minDistFromPlayer = this.player.radius + bodyRadius + 30;
+                }
                 
                 if (distToPlayer >= minDistFromPlayer) {
                     // Check distance from other bodies
                     let tooClose = false;
                     for (const body of this.bodies) {
                         const dist = distance(x, y, body.x, body.y);
-                        const minDist = 20; // Minimum distance between bodies
+                        const minDist = bodyRadius + body.radius + 20; // Minimum distance between bodies
                         if (dist < minDist) {
                             tooClose = true;
                             break;
@@ -90,21 +136,28 @@ class Game {
                 attempts++;
             }
             
-            // If we couldn't find a perfect position, just place it randomly
+            // If we couldn't find a perfect position, try one more time with relaxed constraints
             if (!validPosition) {
-                x = random(0, this.width);
-                y = random(0, this.height);
-            }
-            
-            // Generate mass based on distribution:
-            // 45% small (1-3), 25% medium (4-10), 30% large (11-50)
-            const rand = Math.random();
-            if (rand < 0.45) {
-                mass = randomInt(1, 3); // Small
-            } else if (rand < 0.70) {
-                mass = randomInt(4, 10); // Medium
-            } else {
-                mass = randomInt(11, 50); // Large
+                // For large bodies, still enforce minimum distance from player
+                if (mass > this.player.mass) {
+                    // Keep trying with relaxed constraints
+                    attempts = 0;
+                    while (!validPosition && attempts < 30) {
+                        x = random(0, this.width);
+                        y = random(0, this.height);
+                        const distToPlayer = distance(x, y, this.player.x, this.player.y);
+                        const minDistFromPlayer = this.player.radius + bodyRadius + 80; // Slightly relaxed
+                        if (distToPlayer >= minDistFromPlayer) {
+                            validPosition = true;
+                        }
+                        attempts++;
+                    }
+                } else {
+                    // For smaller bodies, just place randomly
+                    x = random(0, this.width);
+                    y = random(0, this.height);
+                    validPosition = true;
+                }
             }
             
             // Create body with random drift velocity (small slow drift)
@@ -121,7 +174,10 @@ class Game {
      * Update game state
      */
     update(deltaTime) {
-        if (this.state !== 'playing') return;
+        if (this.state === 'menu' || this.state === 'gameOver' || this.state === 'win') {
+            // Don't update game logic when in menu or end screens
+            return;
+        }
 
         // Update player with input and boundaries
         this.player.update(deltaTime, this.inputHandler, this.width, this.height);
@@ -285,12 +341,45 @@ class Game {
             this.player.render(this.ctx);
         }
         
-        // Render game over/win screen
-        if (this.state === 'gameOver') {
+        // Render menu/end screens
+        if (this.state === 'menu') {
+            this.renderMenu();
+        } else if (this.state === 'gameOver') {
             this.renderGameOver();
         } else if (this.state === 'win') {
             this.renderWin();
         }
+    }
+
+    /**
+     * Render start menu screen
+     */
+    renderMenu() {
+        // Draw semi-transparent overlay
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Title
+        this.ctx.fillStyle = '#00ffff';
+        this.ctx.font = 'bold 56px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('DRIFTER STAR', this.width / 2, this.height / 2 - 120);
+        
+        // Instructions
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '20px Arial';
+        this.ctx.fillText('Consume smaller bodies to grow', this.width / 2, this.height / 2 - 40);
+        this.ctx.fillText('Avoid larger bodies or you\'ll be destroyed!', this.width / 2, this.height / 2 - 10);
+        this.ctx.fillText('Reach mass 100 to win', this.width / 2, this.height / 2 + 20);
+        
+        // Controls
+        this.ctx.font = '18px Arial';
+        this.ctx.fillText('Arrow Keys or WASD to move', this.width / 2, this.height / 2 + 60);
+        
+        // Start prompt
+        this.ctx.fillStyle = '#00ff00';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.fillText('Press SPACE or ENTER to start', this.width / 2, this.height / 2 + 120);
     }
 
     /**
