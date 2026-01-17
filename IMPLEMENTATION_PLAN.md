@@ -195,9 +195,10 @@ A space survival game where the player controls an asteroid drifting through spa
 ### Body Generation
 - **Initial Count**: 15-25 bodies (higher density for compact space)
 - **Mass Distribution**: 
-  - 40% small (1-3)
-  - 40% medium (4-10)
-  - 20% large (11-50)
+  - 45% small (1-3)
+  - 25% medium (4-10)
+  - 30% large (11-50)
+  - **Note**: ~58% of bodies are larger than player (mass > 5) for increased challenge
 - **Spawn**: Random positions across entire playable area, ensure no initial collisions
   - **Density Goal**: Ensure at least 3-5 bodies are always visible on screen from any position
   - Bodies should be distributed evenly, avoiding large empty zones
